@@ -10,8 +10,8 @@
   "scripts": {
     "webpack": "DEBUG=purs-loader* DEBUG_DEPTH=100 webpack --progress --bail",
     "webpack:watch": "PATH=$PATH:../releases/psc-package DEBUG=purs-loader* DEBUG_DEPTH=100 webpack --progress --display-error-details --display verbose --watch",
-    "webpack:server": "webpack-dev-server --progress --inline --hot",
-    "webpack:server:debug": "DEBUG=purs-loader* DEBUG_DEPTH=100 webpack-dev-server --progress --inline --hot",
+    "webpack:server": "webpack-dev-server --progress --inline --hot --host 0.0.0.0",
+    "webpack:server:debug": "DEBUG=purs-loader* DEBUG_DEPTH=100 webpack-dev-server --progress --inline --hot --host 0.0.0.0",
     "purs:compile": "purs compile 'bower_components/purescript-*/src/**/*.purs' 'src/**/*.purs'",
     "purs:bundle": "purs bundle output/**/*.js -o bundle.js",
     "start": "node bundle.js"

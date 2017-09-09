@@ -43,14 +43,12 @@ module.exports = {
           {
             loader: 'purs-loader',
             options: {
-              src: [
-                'bower_components/purescript-*/src/**/*.purs',
-                'src/**/*.purs'
-              ],
-              bundle: false,
-              psc: 'psa',
               watch: isWebpackDevServer || isWatch,
-              pscIde: false
+              bundle: true,
+              pscBundleArgs: {
+                main: "Main"
+              },
+              src: ["bower_components/purescript-*/src/**/*.purs", "src/**/*.purs"]
             }
           }
         ]

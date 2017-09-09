@@ -1,5 +1,5 @@
 {
-  "name": "PureFun",
+  "name": "purefun",
   "dependencies": {
     "purescript-console": "^3.0.0",
     "purescript-eff": "^3.1.0",

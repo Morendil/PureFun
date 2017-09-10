@@ -40,12 +40,17 @@ main = do
       height <- getCanvasHeight canvas
       ctx <- getContext2D canvas
       frames <- animationFrame
+      -- foldp :: forall a b. (a -> b -> b) -> b -> (Signal a) -> (Signal b)
+      -- animate :: Signal World
       let animate = foldp update initialState frames
+      -- map :: forall a b. (a -> b) -> f a -> f b
+      -- (World -> Eff _ Unit) -> Signal World -> Signal (Eff _ Unit)
+      -- runSignal :: forall e. Signal (Eff e Unit) -> Eff e Unit
       runSignal (view ctx width height <$> animate)
     Nothing -> pure unit
 
 circle :: World -> Arc
-circle state = 
+circle state =
         { x:  state.x + (640.0 / 2.0)
         , y:  state.y + (480.0 / 2.0)
         , r: 10.0

@@ -26,7 +26,7 @@ type World =
 
 update :: Time -> World -> World
 update time {x, y, start: 0.0} = {x: x, y: y, start: time}
-update time {x, y, start: start} = {x: x + sin(time/100.0)*(time-start)/10000.0, y: y +  cos(time/100.0)*(time-start)/10000.0, start: start}
+update time {x, y, start: start} = {x: sin(time/100.0)*(time-start)/1000.0, y: cos(time/100.0)*(time-start)/1000.0, start: start}
 
 initialState :: World
 initialState = {x: 0.0, y: 0.0, start: 0.0}

@@ -11,27 +11,30 @@ import Graphics.Canvas (Arc, CANVAS, Context2D, arc, fillPath, fillRect, getCanv
 import Signal (foldp, runSignal)
 import Signal.DOM (animationFrame)
 import Signal.Time (Time)
-import Math (sin, cos)
 
 -- Things that we'd rather not deal with
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Timer (TIMER)
 import DOM (DOM)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Control.Monad.Eff.Random (RANDOM, random)
+import Control.Monad.Eff.Timer (TIMER)
 
 type World =
   { x :: Number
   , y :: Number
-  , start :: Time
   }
 
-update :: Time -> World -> World
-update time {x, y, start: 0.0} = {x: x, y: y, start: time}
-update time {x, y, start: start} = {x: sin(time/100.0)*(time-start)/1000.0, y: cos(time/100.0)*(time-start)/1000.0, start: start}
+update :: forall e. Time -> Eff (random :: RANDOM | e) World -> Eff (random :: RANDOM | e) World
+update time world = do
+  let {x: x, y: y} = unsafePerformEff world
+  dx <- map (\q -> 2.0 - q * 4.0) random
+  dy <- map (\q -> 2.0 - q * 4.0) random
+  pure {x: x+dx , y: y+dy}
 
-initialState :: World
-initialState = {x: 0.0, y: 0.0, start: 0.0}
+makeinitialState :: forall e. Eff e World
+makeinitialState = pure {x: 0.0, y: 0.0}
 
-main :: forall e. Eff (canvas :: CANVAS, dom :: DOM, timer :: TIMER | e) Unit
+main :: forall e. Eff (random :: RANDOM, dom :: DOM, canvas :: CANVAS, timer :: TIMER | e) Unit
 main = do
   mcanvas <- getCanvasElementById "canvas"
   case mcanvas of
@@ -40,12 +43,7 @@ main = do
       height <- getCanvasHeight canvas
       ctx <- getContext2D canvas
       frames <- animationFrame
-      -- foldp :: forall a b. (a -> b -> b) -> b -> (Signal a) -> (Signal b)
-      -- animate :: Signal World
-      let animate = foldp update initialState frames
-      -- map :: forall a b. (a -> b) -> f a -> f b
-      -- (World -> Eff _ Unit) -> Signal World -> Signal (Eff _ Unit)
-      -- runSignal :: forall e. Signal (Eff e Unit) -> Eff e Unit
+      let animate = foldp update makeinitialState frames
       runSignal (view ctx width height <$> animate)
     Nothing -> pure unit
 
@@ -58,8 +56,9 @@ circle state =
         , end: 5.0
         }
 
-view :: forall e. Context2D -> Number -> Number -> World -> Eff (canvas :: CANVAS | e) Unit
-view ctx width height state = do
+view :: forall e. Context2D -> Number -> Number -> Eff (canvas :: CANVAS | e) World -> Eff (canvas :: CANVAS | e) Unit
+view ctx width height computeState = do
+  state <- computeState
   _ <- setFillStyle "#FFFFFF" ctx
   _ <- fillRect ctx { x: 0.0, y: 0.0, w: width, h: height }
   _ <- setFillStyle "#0000FF" ctx

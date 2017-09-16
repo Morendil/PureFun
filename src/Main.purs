@@ -8,14 +8,14 @@ import Graphics.Canvas (Arc, CANVAS, Context2D, arc, fillPath, fillRect, getCanv
 						getCanvasHeight, getCanvasWidth, getContext2D, setFillStyle)
 
 -- Things that we respond to, updating our state
-import Signal (foldp, runSignal)
+import Signal (runSignal)
+import SignalExtra (foldpE)
 import Signal.DOM (animationFrame)
 import Signal.Time (Time)
 
 -- Things that we'd rather not deal with
 import DOM (DOM)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Eff.Random (RANDOM, random)
 import Control.Monad.Eff.Timer (TIMER)
 
@@ -24,15 +24,14 @@ type World =
   , y :: Number
   }
 
-update :: forall e. Time -> Eff (random :: RANDOM | e) World -> Eff (random :: RANDOM | e) World
-update time world = do
-  let {x: x, y: y} = unsafePerformEff world
+update :: forall e. Time -> World -> Eff (random :: RANDOM | e) World
+update time {x: x, y: y} = do
   dx <- map (\q -> 2.0 - q * 4.0) random
   dy <- map (\q -> 2.0 - q * 4.0) random
   pure {x: x+dx , y: y+dy}
 
-makeinitialState :: forall e. Eff e World
-makeinitialState = pure {x: 0.0, y: 0.0}
+initialState :: World
+initialState = {x: 0.0, y: 0.0}
 
 main :: forall e. Eff (random :: RANDOM, dom :: DOM, canvas :: CANVAS, timer :: TIMER | e) Unit
 main = do
@@ -43,7 +42,7 @@ main = do
       height <- getCanvasHeight canvas
       ctx <- getContext2D canvas
       frames <- animationFrame
-      let animate = foldp update makeinitialState frames
+      let animate = foldpE update initialState frames
       runSignal (view ctx width height <$> animate)
     Nothing -> pure unit
 
@@ -56,9 +55,8 @@ circle state =
         , end: 5.0
         }
 
-view :: forall e. Context2D -> Number -> Number -> Eff (canvas :: CANVAS | e) World -> Eff (canvas :: CANVAS | e) Unit
-view ctx width height computeState = do
-  state <- computeState
+view :: forall e. Context2D -> Number -> Number -> World -> Eff (canvas :: CANVAS | e) Unit
+view ctx width height state = do
   _ <- setFillStyle "#FFFFFF" ctx
   _ <- fillRect ctx { x: 0.0, y: 0.0, w: width, h: height }
   _ <- setFillStyle "#0000FF" ctx

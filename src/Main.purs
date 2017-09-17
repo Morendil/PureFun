@@ -6,7 +6,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM, randomRange)
 import Control.Monad.Eff.Timer (TIMER)
 import DOM (DOM)
-import Data.Array (replicate, (:))
+import Data.Array (any, filter, replicate, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (sequence, traverse)
 import Graphics.Canvas (CANVAS, Context2D, arc, fillPath, fillRect, getCanvasElementById, getCanvasHeight, getCanvasWidth, getContext2D, setFillStyle)
@@ -27,25 +27,30 @@ update time world = map freezeCells $ traverse (updateCell time) world
 
 freezeCells :: World -> World
 freezeCells world =
-  let freezeStray cell = if tooFar cell then freeze cell else cell
+  let stuckCells = filter stuck world
+      freezeStray cell = if collide stuckCells cell then freeze cell else cell
   in map freezeStray world
 
 freeze :: Cell -> Cell
 freeze (Cell state _) = Cell state Stuck
 
+stuck :: Cell -> Boolean
+stuck (Cell _ Stuck) = true
+stuck (Cell _ Moving) = false
+
+collide :: Array Cell -> Cell -> Boolean
+collide cells cell =
+  let collideWith (Cell pos1 _) (Cell pos2 _) = distance pos1 pos2 < 20.0
+  in any (collideWith cell) cells
+
 distance :: Position -> Position -> Number
 distance pos cell = sqrt $ (cell.x-pos.x)*(cell.x-pos.x) + (cell.y-pos.y)*(cell.y-pos.y)
-
-center = {x : 0.0, y: 0.0} :: Position
-
-tooFar :: Cell -> Boolean
-tooFar (Cell pos _) = (distance center pos) > 200.0
 
 updateCell :: forall e. Time -> Cell -> Eff (random :: RANDOM | e) Cell
 
 updateCell time (Cell {x: x, y: y} Moving) = do
-  dx <- randomRange (-1.0) 1.0
-  dy <- randomRange (-1.0) 1.0
+  dx <- randomRange (-2.0) 2.0
+  dy <- randomRange (-2.0) 2.0
   pure (Cell {x: x+dx , y: y+dy} Moving)
 
 updateCell time (Cell cell Stuck) = 
@@ -58,7 +63,7 @@ makeInitialState width height =
         y <- randomRange 0.0 height
         pure (Cell {x: x-width/2.0, y: y-height/2.0} Moving)
       makeSeed = pure (Cell {x: 0.0, y: 0.0} Stuck)
-      makeCells = makeSeed : replicate 100 makeCell
+      makeCells = makeSeed : replicate 500 makeCell
   in sequence makeCells
 
 main :: forall e. Eff (random :: RANDOM, dom :: DOM, canvas :: CANVAS, timer :: TIMER | e) Unit

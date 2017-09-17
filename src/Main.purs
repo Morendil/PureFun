@@ -10,25 +10,39 @@ import Data.Array (replicate, (:))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (sequence, traverse)
 import Graphics.Canvas (CANVAS, Context2D, arc, fillPath, fillRect, getCanvasElementById, getCanvasHeight, getCanvasWidth, getContext2D, setFillStyle)
+import Math (sqrt)
 import Signal (runSignal)
 import Signal.DOM (animationFrame)
 import Signal.Time (Time)
 import SignalExtra (foldpE)
 
-data Cell = Cell
-  { x :: Number
-  , y :: Number
-  }
-  CellState
-
+type Position = { x :: Number, y :: Number}
+data Cell = Cell Position CellState
 data CellState = Stuck | Moving
 
 type World = Array Cell
 
 update :: forall e. Time -> World -> Eff (random :: RANDOM | e) World
-update time world = traverse (updateCell time) world
+update time world = map freezeCells $ traverse (updateCell time) world
+
+freezeCells :: World -> World
+freezeCells world =
+  let freezeStray cell = if tooFar cell then freeze cell else cell
+  in map freezeStray world
+
+freeze :: Cell -> Cell
+freeze (Cell state _) = Cell state Stuck
+
+distance :: Position -> Position -> Number
+distance pos cell = sqrt $ (cell.x-pos.x)*(cell.x-pos.x) + (cell.y-pos.y)*(cell.y-pos.y)
+
+center = {x : 0.0, y: 0.0} :: Position
+
+tooFar :: Cell -> Boolean
+tooFar (Cell pos _) = (distance center pos) > 200.0
 
 updateCell :: forall e. Time -> Cell -> Eff (random :: RANDOM | e) Cell
+
 updateCell time (Cell {x: x, y: y} Moving) = do
   dx <- randomRange (-1.0) 1.0
   dy <- randomRange (-1.0) 1.0
@@ -42,9 +56,9 @@ makeInitialState width height =
   let makeCell = do
         x <- randomRange 0.0 width
         y <- randomRange 0.0 height
-        pure (Cell {x: x, y: y} Moving)
-      makeSeed = pure (Cell {x: width / 2.0, y: height / 2.0} Stuck)
-      makeCells = makeSeed : replicate 10 makeCell
+        pure (Cell {x: x-width/2.0, y: y-height/2.0} Moving)
+      makeSeed = pure (Cell {x: 0.0, y: 0.0} Stuck)
+      makeCells = makeSeed : replicate 100 makeCell
   in sequence makeCells
 
 main :: forall e. Eff (random :: RANDOM, dom :: DOM, canvas :: CANVAS, timer :: TIMER | e) Unit
@@ -65,19 +79,19 @@ view :: forall e. Context2D -> Number -> Number -> World -> Eff (canvas :: CANVA
 view ctx width height world = do
   _ <- setFillStyle "#FFFFFF" ctx
   _ <- fillRect ctx { x: 0.0, y: 0.0, w: width, h: height }
-  _ <- traverse (viewCell ctx) world
+  _ <- traverse (viewCell ctx width height) world
   pure unit
 
-viewCell :: forall e. Context2D -> Cell -> Eff (canvas :: CANVAS | e) Unit
+viewCell :: forall e. Context2D -> Number -> Number -> Cell -> Eff (canvas :: CANVAS | e) Unit
 
-viewCell ctx (Cell cell Moving) = do
+viewCell ctx width height (Cell cell Moving) = do
   _ <- setFillStyle "#0000FF" ctx
-  _ <- fillPath ctx $ arc ctx $ { x: cell.x, y: cell.y, r: 10.0, start : 0.0, end: 3.14 }
+  _ <- fillPath ctx $ arc ctx $ { x: cell.x + width / 2.0, y: cell.y + height / 2.0, r: 10.0, start : 0.0, end: 3.14 }
   _ <- setFillStyle "#FF0000" ctx
-  _ <- fillPath ctx $ arc ctx $ { x: cell.x, y: cell.y, r: 10.0, start : 3.14, end: 2.0*3.14 }
+  _ <- fillPath ctx $ arc ctx $ { x: cell.x + width / 2.0, y: cell.y + height / 2.0, r: 10.0, start : 3.14, end: 2.0*3.14 }
   pure unit
 
-viewCell ctx (Cell cell Stuck) = do
+viewCell ctx width height (Cell cell Stuck) = do
   _ <- setFillStyle "#00FF00" ctx
-  _ <- fillPath ctx $ arc ctx $ { x: cell.x, y: cell.y, r: 10.0, start : 0.0, end: 2.0*3.14 }
+  _ <- fillPath ctx $ arc ctx $ { x: cell.x + width / 2.0, y: cell.y + height / 2.0, r: 10.0, start : 0.0, end: 2.0*3.14 }
   pure unit

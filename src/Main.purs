@@ -2,12 +2,16 @@ module Main where
 
 import Prelude
 
+import Control.Apply (lift2)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM, randomRange)
 import Control.Monad.Eff.Timer (TIMER)
 import DOM (DOM)
-import Data.Array (any, filter, replicate, (:))
+import Data.Array (any, filter, foldl, replicate, (:))
+import Data.Int (round)
+import Data.Map (Map, empty, alter, lookup)
 import Data.Maybe (Maybe(..))
+import Data.Pair (Pair(..))
 import Data.Traversable (sequence, traverse)
 import Graphics.Canvas (CANVAS, Context2D, arc, fillPath, fillRect, getCanvasElementById, getCanvasHeight, getCanvasWidth, getContext2D, setFillStyle)
 import Math (sqrt)
@@ -21,14 +25,28 @@ data Cell = Cell Position CellState
 data CellState = Stuck | Moving
 
 type World = Array Cell
+type Collider = Map (Pair Int) (Array Cell)
 
 update :: forall e. Time -> World -> Eff (random :: RANDOM | e) World
 update time world = map freezeCells $ traverse (updateCell time) world
 
+toCollider :: Array Cell -> Collider
+toCollider world =
+  let bucket x = (round x) / 20
+      cellKeys (Cell pos _) = lift2 Pair [(bucket pos.x)-1,(bucket pos.x),(bucket pos.x)+1] [(bucket pos.y)-1,(bucket pos.y),(bucket pos.y)+1]
+      addCell x Nothing = Just [x]
+      addCell x (Just xs) = Just (x : xs)
+  in foldl (\dict cell -> foldl (\dict1 key -> alter (addCell cell) key dict1) dict $ cellKeys cell) empty world
+
 freezeCells :: World -> World
 freezeCells world =
   let stuckCells = filter stuck world
-      freezeStray cell = if collide stuckCells cell then freeze cell else cell
+      collider = toCollider stuckCells
+      bucket x = (round x) / 20
+      cellKey (Cell pos _) = Pair (bucket pos.x) (bucket pos.y)
+      freezeStray cell = case lookup (cellKey cell) collider of
+        Nothing -> cell
+        Just cells -> if collide cells cell then freeze cell else cell
   in map freezeStray world
 
 freeze :: Cell -> Cell

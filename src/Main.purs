@@ -5,7 +5,7 @@ import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 
 -- Drawing stuff to the screen
-import Graphics.Canvas (Arc, CANVAS, Context2D, arc, fillPath, fillRect, getCanvasElementById,
+import Graphics.Canvas (CANVAS, Context2D, arc, fillPath, fillRect, getCanvasElementById,
 						getCanvasHeight, getCanvasWidth, getContext2D, setFillStyle)
 
 -- Things that we respond to, updating our state
@@ -36,8 +36,10 @@ updateCell time {x: x, y: y} = do
   dy <- map (\q -> 2.0 - q * 4.0) random
   pure {x: x+dx , y: y+dy}
 
-initialState :: World
-initialState = [{x: 0.0, y: 0.0}, {x: 0.0, y: 0.0}]
+initialState :: Number -> Number -> World
+initialState width height =
+  let cell = {x: (width / 2.0), y: (width / 2.0)}
+  in [cell, cell]
 
 main :: forall e. Eff (random :: RANDOM, dom :: DOM, canvas :: CANVAS, timer :: TIMER | e) Unit
 main = do
@@ -48,18 +50,9 @@ main = do
       height <- getCanvasHeight canvas
       ctx <- getContext2D canvas
       frames <- animationFrame
-      let animate = foldpE update initialState frames
+      let animate = foldpE update (initialState width height) frames
       runSignal (view ctx width height <$> animate)
     Nothing -> pure unit
-
-circle :: Cell -> Arc
-circle state =
-        { x:  state.x + (640.0 / 2.0)
-        , y:  state.y + (480.0 / 2.0)
-        , r: 10.0
-        , start: 0.0
-        , end: 5.0
-        }
 
 view :: forall e. Context2D -> Number -> Number -> World -> Eff (canvas :: CANVAS | e) Unit
 view ctx width height world = do
@@ -71,5 +64,7 @@ view ctx width height world = do
 viewCell :: forall e. Context2D -> Number -> Number -> Cell -> Eff (canvas :: CANVAS | e) Unit
 viewCell ctx width height cell = do
   _ <- setFillStyle "#0000FF" ctx
-  _ <- fillPath ctx $ arc ctx $ circle cell
+  _ <- fillPath ctx $ arc ctx $ { x: cell.x, y: cell.y, r: 10.0, start : 0.0, end: 3.14 }
+  _ <- setFillStyle "#FF0000" ctx
+  _ <- fillPath ctx $ arc ctx $ { x: cell.x, y: cell.y, r: 10.0, start : 3.14, end: 2.0*3.14 }
   pure unit
